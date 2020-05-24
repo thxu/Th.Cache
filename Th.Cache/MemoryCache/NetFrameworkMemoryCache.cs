@@ -1,20 +1,12 @@
 ﻿#if NETFRAMEWORK
-#else
-using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Options;     
-
 using System;
+using System.Collections;
+using System.Web;
 
 namespace Th.Cache.MemoryCache
 {
-    /// <summary>
-    /// NetCore版本缓存实现
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    internal class NetCoreMemoryCache : ICustomerMemoryCache
+    public class NetFrameworkMemoryCache : ICustomerMemoryCache
     {
-        private static IMemoryCache _memoryCache = new Microsoft.Extensions.Caching.Memory.MemoryCache(Options.Create(new MemoryCacheOptions()));
-
         /// <summary>
         /// 获取缓存值
         /// </summary>
@@ -25,14 +17,15 @@ namespace Th.Cache.MemoryCache
         {
             try
             {
-                var isExist = _memoryCache.TryGetValue(key, out var val);
-                if (isExist)
+                System.Web.Caching.Cache objCache = HttpRuntime.Cache;
+                var val = objCache[key];
+                if (val == null)
                 {
-                    return (T)val;
+                    return default(T);
                 }
-                return default(T);
+                return (T)val;
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 return default(T);
             }
@@ -46,7 +39,8 @@ namespace Th.Cache.MemoryCache
         /// <param name="obj">缓存值</param>
         public void Set<T>(string key, T obj)
         {
-            _memoryCache.GetOrCreate(key, (cacheEntry => obj));
+            System.Web.Caching.Cache objCache = HttpRuntime.Cache;
+            objCache.Insert(key, obj);
         }
 
         /// <summary>
@@ -58,11 +52,8 @@ namespace Th.Cache.MemoryCache
         /// <param name="timeSpan">过期时间</param>
         public void Set<T>(string key, T obj, TimeSpan timeSpan)
         {
-            _memoryCache.GetOrCreate(key, (cacheEntry =>
-            {
-                cacheEntry.SetAbsoluteExpiration(timeSpan);
-                return obj;
-            }));
+            System.Web.Caching.Cache objCache = HttpRuntime.Cache;
+            objCache.Insert(key, obj, null, DateTime.Now.Add(timeSpan), TimeSpan.Zero, System.Web.Caching.CacheItemPriority.NotRemovable, null);
         }
 
         /// <summary>
@@ -74,11 +65,8 @@ namespace Th.Cache.MemoryCache
         /// <param name="expireTime">过期时间</param>
         public void Set<T>(string key, T obj, DateTime expireTime)
         {
-            _memoryCache.GetOrCreate(key, (cacheEntry =>
-            {
-                cacheEntry.SetAbsoluteExpiration(expireTime);
-                return obj;
-            }));
+            System.Web.Caching.Cache objCache = HttpRuntime.Cache;
+            objCache.Insert(key, obj, null, expireTime, TimeSpan.Zero, System.Web.Caching.CacheItemPriority.NotRemovable, null);
         }
 
         /// <summary>
@@ -87,7 +75,8 @@ namespace Th.Cache.MemoryCache
         /// <param name="key">缓存key</param>
         public void Remove(string key)
         {
-            _memoryCache.Remove(key);
+            System.Web.Caching.Cache cache = HttpRuntime.Cache;
+            cache.Remove(key);
         }
 
         /// <summary>
@@ -95,8 +84,14 @@ namespace Th.Cache.MemoryCache
         /// </summary>
         public void Clear()
         {
-            _memoryCache = new Microsoft.Extensions.Caching.Memory.MemoryCache(Options.Create(new MemoryCacheOptions()));
+            System.Web.Caching.Cache cache = HttpRuntime.Cache;
+            IDictionaryEnumerator cacheEnum = cache.GetEnumerator();
+            while (cacheEnum.MoveNext())
+            {
+                if (cacheEnum.Key != null) cache.Remove(cacheEnum.Key.ToString());
+            }
         }
     }
 }
+#else
 #endif

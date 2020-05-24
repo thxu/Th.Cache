@@ -8,7 +8,11 @@ namespace Th.Cache.MemoryCache
 
         static MemoryCacheHelper()
         {
+#if NETFRAMEWORK
+            _cacheClient = new NetFrameworkMemoryCache();
+#else
             _cacheClient = new NetCoreMemoryCache();
+#endif
         }
 
         public static T Get<T>(string key)
